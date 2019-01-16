@@ -1,0 +1,10 @@
+.Install
+----
+go get github.com/redhat-gpte-devopsautomation/aws-tools/janitor
+got install github.com/redhat-gpte-devopsautomation/aws-tools/janitor
+----
+
+.Run
+----
+janitor -u=gucore@redhat.com-testgucore -t='2019-01-14T07:04:25.392000+00:00' -r -v
+----

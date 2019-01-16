@@ -267,7 +267,7 @@ func ec2EIPExists(addressId string) bool {
 			switch aerr.Code() {
 			case "InvalidParameterValue":
 				return false
-			case "InvalidAddressID.NotFound":
+			case "InvalidAddress.NotFound":
 				return false
 			default:
 				logErr.Println(aerr.Code())
@@ -544,7 +544,6 @@ func main() {
 
 	if len(existingResources) > 0 {
 		logReport.Println("Activity of user ", userName, " starting at ", startTime)
-		logReport.Println("Number of resources related to user found in CloudTrail: ", len(resources))
 		logReport.Println("Number of resources still existing: ", len(existingResources))
 		logReport.Println()
 		for _, resource := range existingResources {
@@ -552,7 +551,6 @@ func main() {
 		}
 	} else {
 		logOut.Println("Activity of user ", userName, " starting at ", startTime)
-		logOut.Println("Number of resources related to user found in CloudTrail: ", len(resources))
 		logOut.Println("No resources found.")
 	}
 }
