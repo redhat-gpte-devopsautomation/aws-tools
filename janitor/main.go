@@ -35,7 +35,6 @@ import (
 	"time"
 )
 
-var showEvents bool
 var userName string
 var startTime time.Time
 var debug bool
@@ -58,11 +57,11 @@ var maxRetries int = 100
 func parseFlags() {
 	var startTimeString string
 	// Option to show event
-	flag.BoolVar(&showEvents, "s", false, "Whether to show the event")
 	flag.BoolVar(&debug, "v", false, "Whether to show DEBUG info")
 	flag.BoolVar(&recursive, "r", false, "Perform action recursively, search for resources touched or created by instances which themselves were created by the user")
 	flag.StringVar(&userName, "u", "", "The username that created the resources")
 	flag.StringVar(&startTimeString, "t", "", "Filter event starting at that time. It's RFC3339 or ISO8601 time, ex: 2019-01-14T09:04:25.392000+00:00")
+
 	flag.Parse()
 
 	if userName == "" || startTimeString == "" {
