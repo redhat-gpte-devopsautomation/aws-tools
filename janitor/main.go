@@ -365,6 +365,40 @@ func ec2SecurityGroupExists(securityGroupId string) bool {
 	return false
 }
 
+func ec2NetworkInterfaceExists(networkInterfaceId string) bool {
+	v("exists? ", networkInterfaceId)
+	if svcEc2 == nil {
+		svcEc2 = ec2.New(sess)
+	}
+
+	input := &ec2.DescribeNetworkInterfacesInput{
+		NetworkInterfaceIds: []*string{
+			&networkInterfaceId,
+		},
+	}
+	result, err := svcEc2.DescribeNetworkInterfaces(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "InvalidNetworkInterfaceID.NotFound":
+				return false
+			default:
+				logErr.Println(aerr.Code())
+				logErr.Println(aerr.Error())
+			}
+		} else {
+			logErr.Println(err.Error())
+		}
+		return false
+	}
+
+	for range result.NetworkInterfaces {
+		return true
+	}
+
+	return false
+}
+
 func resourceExists(resource *cloudtrail.Resource) bool {
 	switch *resource.ResourceType {
 	case "AWS::EC2::Instance":
@@ -381,10 +415,11 @@ func resourceExists(resource *cloudtrail.Resource) bool {
 		return ec2RouteTableExists(*resource.ResourceName)
 	case "AWS::EC2::SecurityGroup":
 		return ec2SecurityGroupExists(*resource.ResourceName)
+	case "AWS::EC2::NetworkInterface":
+		return ec2NetworkInterfaceExists(*resource.ResourceName)
 
 		/* TODO:
 		   23 AWS::EC2::SubnetRouteTableAssociation
-		   13 AWS::EC2::NetworkInterface
 		   12 AWS::IAM::InstanceProfile
 		    9 AWS::IAM::Role
 		    9 AWS::ElasticLoadBalancingV2::TargetGroup
