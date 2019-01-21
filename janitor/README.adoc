@@ -1,7 +1,7 @@
 .Install
 ----
 go get github.com/redhat-gpte-devopsautomation/aws-tools/janitor
-got install github.com/redhat-gpte-devopsautomation/aws-tools/janitor
+go install github.com/redhat-gpte-devopsautomation/aws-tools/janitor
 ----
 
 .Run
