@@ -96,7 +96,7 @@ func IsInterestingEvent(eventName string) bool {
 }
 
 func elasticLoadBalancingLoadBalancerExists(LoadBalancerId string) bool {
-	v("exists? ", LoadBalancerId)
+	v("exists?", LoadBalancerId)
 
 	// Skip full ids, test only LoadBalancer names
 	if strings.Contains(LoadBalancerId, "arn:aws:iam") {
@@ -152,6 +152,10 @@ func resourceExists(resource *cloudtrail.Resource) bool {
 		return ec2NetworkInterfaceExists(*resource.ResourceName)
 	case "AWS::EC2::VPC":
 		return ec2VpcExists(*resource.ResourceName)
+	case "AWS::EC2::InternetGateway":
+		return ec2InternetGatewayExists(*resource.ResourceName)
+	case "AWS::EC2::Ami":
+		return ec2ImageExists(*resource.ResourceName)
 	case "AWS::IAM::InstanceProfile":
 		return iamInstanceProfileExists(*resource.ResourceName)
 	case "AWS::IAM::Role":
@@ -166,11 +170,9 @@ func resourceExists(resource *cloudtrail.Resource) bool {
 		    5 AWS::S3::Bucket
 		    3 AWS::IAM::Policy
 		    3 AWS::ElasticLoadBalancingV2::Listener
-		    2 AWS::EC2::InternetGateway
-		    2 AWS::EC2::Ami
 		*/
 	default:
-		logErr.Println("Type ", *resource.ResourceType, " not supported")
+		logErr.Println("Type", *resource.ResourceType, "not supported")
 	}
 
 	return false
@@ -212,6 +214,7 @@ LookupLoop:
 		err := svcCloudtrail.LookupEventsPages(input,
 			func(page *cloudtrail.LookupEventsOutput, lastPage bool) bool {
 				pageNum++
+
 				for _, event := range page.Events {
 					if len(event.Resources) > 0 && IsInterestingEvent(*event.EventName) {
 						for _, resource := range event.Resources {
@@ -219,7 +222,7 @@ LookupLoop:
 								if !seen[*resource.ResourceName] {
 									resources = append(resources, resource)
 									seen[*resource.ResourceName] = true
-									v(*resource.ResourceType, *resource.ResourceName)
+									v("└──", *resource.ResourceType, *resource.ResourceName)
 								}
 							}
 						}
@@ -249,13 +252,16 @@ LookupLoop:
 				case connect.ErrCodeThrottlingException:
 					retries++
 					randomDelay := time.Duration(rand.Intn(int(delay))) * time.Second
-					v("# Throttled because of too many connections... sleeping ", randomDelay, "-- Resources found so far: ", len(resources))
+					v("# Throttled because of too many connections... sleeping", randomDelay, "-- Resources found so far: ", len(resources))
 					if retries >= maxRetries {
 						break LookupLoop
 					}
 					time.Sleep(randomDelay)
 					delay = delay * 2
 					continue LookupLoop
+				default:
+					logErr.Println("Got error calling LookupEvent:")
+					logErr.Println(err.Error())
 				}
 			}
 
@@ -316,14 +322,14 @@ func main() {
 	existingResources := filterExisting(resources)
 
 	if len(existingResources) > 0 {
-		logReport.Println("Activity of user ", userName, " starting at ", startTime)
-		logReport.Println("Number of resources still existing: ", len(existingResources))
+		logReport.Println("Activity of user", userName, "starting at ", startTime)
+		logReport.Println("Number of resources still existing:", len(existingResources))
 		logReport.Println()
 		for _, resource := range existingResources {
-			logReport.Println(*resource.ResourceType, " ", *resource.ResourceName)
+			logReport.Println(*resource.ResourceType, *resource.ResourceName)
 		}
 	} else {
-		logOut.Println("Activity of user ", userName, " starting at ", startTime)
+		logOut.Println("Activity of user", userName, "starting at ", startTime)
 		logOut.Println("No resources found.")
 	}
 }

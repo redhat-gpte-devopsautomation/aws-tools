@@ -348,3 +348,79 @@ func ec2NetworkInterfaceExists(networkInterfaceId string) bool {
 
 	return false
 }
+
+func ec2InternetGatewayExists(internetGatewayId string) bool {
+	v("exists? ", internetGatewayId)
+	if svcEc2 == nil {
+		svcEc2 = ec2.New(sess)
+	}
+
+	input := &ec2.DescribeInternetGatewaysInput{
+		InternetGatewayIds: []*string{
+			&internetGatewayId,
+		},
+	}
+	result, err := svcEc2.DescribeInternetGateways(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "InvalidInternetGatewayID.NotFound":
+				return false
+			default:
+				logErr.Println(aerr.Code())
+				logErr.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			logErr.Println(err.Error())
+		}
+		return false
+	}
+
+	for _, internetGateway := range result.InternetGateways {
+		if *internetGateway.OwnerId != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ec2ImageExists(imageId string) bool {
+	v("exists? ", imageId)
+	if svcEc2 == nil {
+		svcEc2 = ec2.New(sess)
+	}
+
+	input := &ec2.DescribeImagesInput{
+		ImageIds: []*string{
+			&imageId,
+		},
+	}
+	result, err := svcEc2.DescribeImages(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "InvalidImageID.NotFound":
+				return false
+			default:
+				logErr.Println(aerr.Code())
+				logErr.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			logErr.Println(err.Error())
+		}
+		return false
+	}
+
+	for _, image := range result.Images {
+		if *image.OwnerId != "" {
+			return true
+		}
+	}
+
+	return false
+}
