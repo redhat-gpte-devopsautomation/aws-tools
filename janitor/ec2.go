@@ -8,7 +8,7 @@ import (
 var svcEc2 *ec2.EC2
 
 func ec2InstanceExists(instanceId string) bool {
-	v("exists? ", instanceId)
+	v("exists?", instanceId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -48,7 +48,7 @@ func ec2InstanceExists(instanceId string) bool {
 }
 
 func ec2VolumeExists(volumeId string) bool {
-	v("exists? ", volumeId)
+	v("exists?", volumeId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -86,7 +86,7 @@ func ec2VolumeExists(volumeId string) bool {
 }
 
 func ec2NatGatewayExists(natgatewayId string) bool {
-	v("exists? ", natgatewayId)
+	v("exists?", natgatewayId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -124,7 +124,7 @@ func ec2NatGatewayExists(natgatewayId string) bool {
 }
 
 func ec2SubnetExists(subnetId string) bool {
-	v("exists? ", subnetId)
+	v("exists?", subnetId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -162,7 +162,7 @@ func ec2SubnetExists(subnetId string) bool {
 }
 
 func ec2VpcExists(vpcId string) bool {
-	v("exists? ", vpcId)
+	v("exists?", vpcId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -200,7 +200,7 @@ func ec2VpcExists(vpcId string) bool {
 }
 
 func ec2EIPExists(addressId string) bool {
-	v("exists? ", addressId)
+	v("exists?", addressId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -240,7 +240,7 @@ func ec2EIPExists(addressId string) bool {
 }
 
 func ec2RouteTableExists(routeTableId string) bool {
-	v("exists? ", routeTableId)
+	v("exists?", routeTableId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -278,7 +278,7 @@ func ec2RouteTableExists(routeTableId string) bool {
 }
 
 func ec2SecurityGroupExists(securityGroupId string) bool {
-	v("exists? ", securityGroupId)
+	v("exists?", securityGroupId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -316,7 +316,7 @@ func ec2SecurityGroupExists(securityGroupId string) bool {
 }
 
 func ec2NetworkInterfaceExists(networkInterfaceId string) bool {
-	v("exists? ", networkInterfaceId)
+	v("exists?", networkInterfaceId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -350,7 +350,7 @@ func ec2NetworkInterfaceExists(networkInterfaceId string) bool {
 }
 
 func ec2InternetGatewayExists(internetGatewayId string) bool {
-	v("exists? ", internetGatewayId)
+	v("exists?", internetGatewayId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}
@@ -388,7 +388,7 @@ func ec2InternetGatewayExists(internetGatewayId string) bool {
 }
 
 func ec2ImageExists(imageId string) bool {
-	v("exists? ", imageId)
+	v("exists?", imageId)
 	if svcEc2 == nil {
 		svcEc2 = ec2.New(sess)
 	}

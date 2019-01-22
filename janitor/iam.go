@@ -9,7 +9,7 @@ import (
 var svcIam *iam.IAM
 
 func iamInstanceProfileExists(instanceprofileId string) bool {
-	v("exists? ", instanceprofileId)
+	v("exists?", instanceprofileId)
 
 	// Skip full ids, test only InstanceProfile names
 	//if strings.Contains(instanceprofileId, "arn:aws:iam") {
@@ -44,7 +44,7 @@ func iamInstanceProfileExists(instanceprofileId string) bool {
 }
 
 func iamRoleExists(RoleId string) bool {
-	v("exists? ", RoleId)
+	v("exists?", RoleId)
 
 	// Skip full ids, test only Role names
 	if strings.Contains(RoleId, "arn:aws:iam") {
