@@ -27,7 +27,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/connect"
-	"github.com/aws/aws-sdk-go/service/elb"
 	"log"
 	"math/rand"
 	"os"
@@ -50,7 +49,6 @@ var logReport *log.Logger
 
 var sess client.ConfigProvider
 var svcCloudtrail *cloudtrail.CloudTrail
-var svcElb *elb.ELB
 
 var maxRetries int = 100
 
@@ -95,43 +93,6 @@ func IsInterestingEvent(eventName string) bool {
 	return true
 }
 
-func elasticLoadBalancingLoadBalancerExists(LoadBalancerId string) bool {
-	v("exists?", LoadBalancerId)
-
-	// Skip full ids, test only LoadBalancer names
-	if strings.Contains(LoadBalancerId, "arn:aws:iam") {
-		return false
-	}
-	if svcElb == nil {
-		svcElb = elb.New(sess)
-	}
-
-	input := &elb.DescribeLoadBalancersInput{
-		LoadBalancerNames: []*string{
-			&LoadBalancerId,
-		},
-	}
-	_, err := svcElb.DescribeLoadBalancers(input)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case "LoadBalancerNotFound":
-				return false
-			default:
-				logErr.Println(aerr.Code())
-				logErr.Println(aerr.Error())
-			}
-		} else {
-			logErr.Println(err.Error())
-		}
-		return false
-	} else {
-		return true
-	}
-
-	return false
-}
-
 func resourceExists(resource *cloudtrail.Resource) bool {
 	switch *resource.ResourceType {
 	case "AWS::EC2::Instance":
@@ -162,14 +123,18 @@ func resourceExists(resource *cloudtrail.Resource) bool {
 		return iamRoleExists(*resource.ResourceName)
 	case "AWS::ElasticLoadBalancing::LoadBalancer":
 		return elasticLoadBalancingLoadBalancerExists(*resource.ResourceName)
+	case "AWS::ElasticLoadBalancingV2::LoadBalancer":
+		return elasticLoadBalancingV2LoadBalancerExists(*resource.ResourceName)
+	case "AWS::ElasticLoadBalancingV2::Listener":
+		return elasticLoadBalancingV2ListenerExists(*resource.ResourceName)
+	case "AWS::ElasticLoadBalancingV2::TargetGroup":
+		return elasticLoadBalancingV2TargetGroupExists(*resource.ResourceName)
+	case "AWS::S3::Bucket":
+		return s3BucketExists(*resource.ResourceName)
 
 		/* TODO:
 		   23 AWS::EC2::SubnetRouteTableAssociation
-		    9 AWS::ElasticLoadBalancingV2::TargetGroup
-		    6 AWS::ElasticLoadBalancingV2::LoadBalancer
-		    5 AWS::S3::Bucket
 		    3 AWS::IAM::Policy
-		    3 AWS::ElasticLoadBalancingV2::Listener
 		*/
 	default:
 		logErr.Println("Type", *resource.ResourceType, "not supported")
