@@ -284,6 +284,7 @@ func main() {
 		}
 	}
 
+	v("Total number of resources to test for existence:", len(resources))
 	existingResources := filterExisting(resources)
 
 	if len(existingResources) > 0 {
