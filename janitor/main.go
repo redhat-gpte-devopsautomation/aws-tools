@@ -9,12 +9,12 @@ See doc at https://docs.aws.amazon.com/sdk-for-go/api/
 DONE: list all events done by user and his instances (master0 usually)
 DONE: add a recursive option to include all resources created by instances
 DONE: make concurrency work (throttling), catch exceptions and retry using (exponentially) delayed retries
+DONE: Split into several files for readability/maintenance
+DONE: dry-mode: print resources still existing => first step: this will be emailed to us after deletion
+DONE: filter out possible false-positive, stupid ex: a user describe our top root route53 domain, we don't want to delete the domain! For now exclude *Describe* actions. Need to comeup with a whitelist of actions.
 TODO: make sure concurrency work again with all the *Exists() functions that use different API (ec2, iam, ...)
-TODO: dry-mode: print resources still existing => first step: this will be emailed to us after deletion
 TODO: all a all-region option to control all possible AWS regions
-TODO: filter out possible false-positive, stupid ex: a user describe our top root route53 domain, we don't want to delete the domain! For now exclude *Describe* actions. Need to comeup with a whitelist of actions.
 TODO: delete all resources, including dynamic resources (gp2 storage class, elb...)
-TODO: Split into several files for readability/maintenance
 */
 
 package main

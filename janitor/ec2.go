@@ -421,6 +421,7 @@ func ec2ImageExists(imageId string) bool {
 
 	for _, image := range result.Images {
 		if *image.Public {
+			logOut.Println(imageId, "is public, skipping.")
 			return false
 		}
 
