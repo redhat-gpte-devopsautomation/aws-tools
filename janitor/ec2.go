@@ -118,10 +118,8 @@ func ec2NatGatewayExists(natgatewayId string) bool {
 		switch *natgateway.State {
 		case "deleted", "deleting":
 			return false
-		case "failed", "pending", "available":
-			return true
 		default:
-			return false
+			return true
 		}
 	}
 
@@ -422,7 +420,14 @@ func ec2ImageExists(imageId string) bool {
 	}
 
 	for _, image := range result.Images {
-		if *image.OwnerId != "" {
+		if *image.Public {
+			return false
+		}
+
+		switch *image.State {
+		case "deleted", "deleting":
+			return false
+		default:
 			return true
 		}
 	}
