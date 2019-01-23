@@ -115,8 +115,13 @@ func ec2NatGatewayExists(natgatewayId string) bool {
 	}
 
 	for _, natgateway := range result.NatGateways {
-		if *natgateway.State != "" {
+		switch *natgateway.State {
+		case "deleted", "deleting":
+			return false
+		case "failed", "pending", "available":
 			return true
+		default:
+			return false
 		}
 	}
 
