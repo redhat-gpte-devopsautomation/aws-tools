@@ -86,11 +86,16 @@ func v(line ...interface{}) {
 func IsInterestingEvent(eventName string) bool {
 	switch eventName {
 	case
-		"RegisterTargets":
+		"DeregisterTargets",
+		"TerminateInstances",
+		"RemoveRoleFromInstanceProfile":
 		return false
 	}
 
 	if strings.Contains(eventName, "Describe") {
+		return false
+	}
+	if strings.Contains(eventName, "Delete") {
 		return false
 	}
 	return true
