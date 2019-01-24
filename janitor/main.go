@@ -15,6 +15,7 @@ DONE: filter out possible false-positive, stupid ex: a user describe our top roo
 TODO: make sure concurrency work again with all the *Exists() functions that use different API (ec2, iam, ...)
 TODO: all a all-region option to control all possible AWS regions
 TODO: delete all resources, including dynamic resources (gp2 storage class, elb...)
+TODO: filter out resources if creation time is before time passed as argument
 */
 
 package main
@@ -38,6 +39,7 @@ var userName string
 var startTime time.Time
 var debug bool
 var recursive bool
+var showevents bool
 
 // Logs
 var logErr *log.Logger
@@ -56,6 +58,7 @@ func parseFlags() {
 	var startTimeString string
 	// Option to show event
 	flag.BoolVar(&debug, "v", false, "Whether to show DEBUG info")
+	flag.BoolVar(&showevents, "showevents", false, "Whether to show Events info")
 	flag.BoolVar(&recursive, "r", false, "Perform action recursively, search for resources touched or created by instances which themselves were created by the user")
 	flag.StringVar(&userName, "u", "", "The username that created the resources")
 	flag.StringVar(&startTimeString, "t", "", "Filter event starting at that time. It's RFC3339 or ISO8601 time, ex: 2019-01-14T09:04:25.392000+00:00")
@@ -185,6 +188,9 @@ LookupLoop:
 						for _, resource := range event.Resources {
 							if resource.ResourceType != nil {
 								if !seen[*resource.ResourceName] {
+									if showevents {
+										v(event)
+									}
 									resources = append(resources, resource)
 									seen[*resource.ResourceName] = true
 									v("└──", *resource.ResourceType, *resource.ResourceName)
