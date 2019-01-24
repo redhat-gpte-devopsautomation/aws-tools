@@ -156,7 +156,14 @@ func ec2SubnetExists(subnetId string) bool {
 	}
 
 	for _, subnet := range result.Subnets {
-		if *subnet.State != "" {
+		// exclude default subnet
+		if *subnet.DefaultForAz {
+			return false
+		}
+		switch *subnet.State {
+		case "deleted", "deleting":
+			return false
+		default:
 			return true
 		}
 	}
@@ -194,7 +201,14 @@ func ec2VpcExists(vpcId string) bool {
 	}
 
 	for _, vpc := range result.Vpcs {
-		if *vpc.State != "" {
+		// filter out default VPC
+		if *vpc.IsDefault {
+			return false
+		}
+		switch *vpc.State {
+		case "deleted", "deleting":
+			return false
+		default:
 			return true
 		}
 	}
