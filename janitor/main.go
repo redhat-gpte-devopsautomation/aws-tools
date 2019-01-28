@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/connect"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -269,8 +270,16 @@ func main() {
 	parseFlags()
 
 	logErr = log.New(os.Stderr, "!!! ", log.LstdFlags)
-	logOut = log.New(os.Stdout, "    ", log.LstdFlags)
-	logDebug = log.New(os.Stdout, "(d) ", log.LstdFlags)
+	if quietmode {
+		logOut = log.New(ioutil.Discard, "    ", log.LstdFlags)
+	} else {
+		logOut = log.New(os.Stdout, "    ", log.LstdFlags)
+	}
+	if debug {
+		logDebug = log.New(os.Stdout, "(d) ", log.LstdFlags)
+	} else {
+		logDebug = log.New(ioutil.Discard, "(d) ", log.LstdFlags)
+	}
 	logReport = log.New(os.Stdout, "+++ ", log.LstdFlags)
 
 	var err error
@@ -307,7 +316,7 @@ func main() {
 		for _, resource := range existingResources {
 			logReport.Println(*resource.ResourceType, *resource.ResourceName)
 		}
-	} else if !quietmode {
+	} else {
 		logOut.Println("Activity of user", userName, "starting at ", startTime)
 		logOut.Println("No resources found.")
 	}
