@@ -171,6 +171,45 @@ func ec2SubnetExists(subnetId string) bool {
 	return false
 }
 
+func isDefaultVpc(vpcId string) bool {
+	v("exists?", vpcId)
+	if svcEc2 == nil {
+		svcEc2 = ec2.New(sess)
+	}
+
+	input := &ec2.DescribeVpcsInput{
+		VpcIds: []*string{
+			&vpcId,
+		},
+	}
+	result, err := svcEc2.DescribeVpcs(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "InvalidVpcID.NotFound":
+				return false
+			default:
+				logErr.Println(aerr.Code())
+				logErr.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			logErr.Println(err.Error())
+		}
+		return false
+	}
+
+	for _, vpc := range result.Vpcs {
+		// filter out default VPC
+		if *vpc.IsDefault {
+			return true
+		}
+	}
+
+	return false
+}
+
 func ec2VpcExists(vpcId string) bool {
 	v("exists?", vpcId)
 	if svcEc2 == nil {
@@ -325,8 +364,13 @@ func ec2SecurityGroupExists(securityGroupId string) bool {
 		return false
 	}
 
-	for range result.SecurityGroups {
-		return true
+	for _, group := range result.SecurityGroups {
+		// skip securityGroup of the default VPC
+		if isDefaultVpc(*group.VpcId) {
+			return false
+		} else {
+			return true
+		}
 	}
 
 	return false
