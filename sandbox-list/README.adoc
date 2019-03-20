@@ -1,0 +1,16 @@
+
+.Install
+----
+go get github.com/redhat-gpte-devopsautomation/aws-tools/sandbox-list
+go install github.com/redhat-gpte-devopsautomation/aws-tools/sandbox-list
+----
+
+.Run
+----
+export AWS_PROFILE=pool-manager
+export AWS_REGION=us-east-1
+
+sandbox-list
+sandbox-list -all
+sandbox-list -all -csv
+----
