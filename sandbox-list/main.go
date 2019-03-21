@@ -10,27 +10,29 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 	"os"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var csv bool
 var all bool
 
 type Account struct {
-	Name         string  `json:"name"`
-	Available    bool    `json:"available"`
-	Guid         string  `json:"guid"`
-	Envtype      string  `json:"envtype"`
-	AccountId    string  `json:"account_id"`
-	Owner        string  `json:"owner"`
-	OwnerEmail   string  `json:"owner_email"`
-	Zone         string  `json:"zone"`
-	HostedZoneId string  `json:"hosted_zone_id"`
-	UpdateTime   float64 `json:"aws:rep:updatetime"`
-	Comment      string  `json:"comment"`
+	Name               string  `json:"name"`
+	Available          bool    `json:"available"`
+	Guid               string  `json:"guid"`
+	Envtype            string  `json:"envtype"`
+	AccountId          string  `json:"account_id"`
+	Owner              string  `json:"owner"`
+	OwnerEmail         string  `json:"owner_email"`
+	Zone               string  `json:"zone"`
+	HostedZoneId       string  `json:"hosted_zone_id"`
+	UpdateTime         float64 `json:"aws:rep:updatetime"`
+	Comment            string  `json:"comment"`
+	AwsAccessKeyId     string  `json:"aws_access_key_id"`
+	AwsSecretAccessKey string  `json:"aws_secret_access_key"`
 }
 
 func (a Account) String() string {
@@ -40,6 +42,12 @@ func (a Account) String() string {
 	} else {
 		separator = "\t"
 	}
+	ti, err := strconv.ParseInt(strconv.FormatFloat(a.UpdateTime, 'f', 0, 64), 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	updatetime := time.Unix(ti, 0)
 	return strings.Join([]string{
 		a.Name,
 		strconv.FormatBool(a.Available),
@@ -50,14 +58,12 @@ func (a Account) String() string {
 		a.OwnerEmail,
 		a.Zone,
 		a.HostedZoneId,
-		strconv.FormatFloat(a.UpdateTime, 'E', -1, 64),
+		updatetime.Format(time.RFC3339),
 		a.Comment,
 	}, separator)
 }
 
 func printHeaders() {
-	s := reflect.ValueOf(&Account{}).Elem()
-	typeOfT := s.Type()
 	var separator string
 	if csv {
 		separator = ","
@@ -65,8 +71,21 @@ func printHeaders() {
 		separator = "\t"
 	}
 
-	for i := 0; i < s.NumField(); i++ {
-		fmt.Printf("%s%s", typeOfT.Field(i).Name, separator)
+	headers := []string{
+		"Name",
+		"Available",
+		"Guid",
+		"Envtype",
+		"AccountId",
+		"Owner",
+		"OwnerEmail",
+		"Zone",
+		"HostedZoneId",
+		"UpdateTime",
+		"Comment",
+	}
+	for _, h := range headers {
+		fmt.Printf("%s%s", h, separator)
 	}
 	fmt.Println()
 }
@@ -143,6 +162,29 @@ func printMostRecentlyUsed(accounts []Account) {
 	}
 }
 
+func printBroken(accounts []Account) {
+	fmt.Println()
+	fmt.Println("Broken sandboxes:")
+	printHeaders()
+	for _, sandbox := range accounts {
+		if sandbox.AwsAccessKeyId == "" {
+			fmt.Printf("%v %v\n", sandbox, "Access key missing")
+		}
+		if sandbox.AwsSecretAccessKey == "" {
+			fmt.Printf("%v %v\n", sandbox, "Access secret key missing")
+		}
+		if sandbox.Zone == "" {
+			fmt.Printf("%v %v\n", sandbox, "Zone missing")
+		}
+		if sandbox.HostedZoneId == "" {
+			fmt.Printf("%v %v\n", sandbox, "HostedZoneId missing")
+		}
+		if !sandbox.Available && sandbox.Owner == "" && sandbox.OwnerEmail == "" {
+			fmt.Printf("%v %v\n", sandbox, "Owner missing")
+		}
+	}
+}
+
 func main() {
 	parseFlags()
 
@@ -166,6 +208,8 @@ func main() {
 		expression.Name("comment"),
 		expression.Name("owner_email"),
 		expression.Name("aws:rep:updatetime"),
+		expression.Name("aws_access_key_id"),
+		expression.Name("aws_secret_access_key"),
 	)
 
 	expr, err := expression.NewBuilder().WithProjection(proj).Build()
@@ -218,4 +262,5 @@ func main() {
 	fmt.Println("Total Used:", len(usedAccounts), "/", len(accounts))
 
 	printMostRecentlyUsed(accounts)
+	printBroken(accounts)
 }
