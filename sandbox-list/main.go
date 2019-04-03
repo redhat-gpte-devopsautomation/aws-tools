@@ -253,7 +253,7 @@ func main() {
 	accounts := buildAccounts(result)
 	if all {
 		printHeaders()
-		for _, sandbox := range accounts {
+		for _, sandbox := range sortUpdateTime(accounts) {
 			fmt.Println(sandbox)
 		}
 		os.Exit(0)
