@@ -169,9 +169,7 @@ func printMostRecentlyUsed(accounts []Account) {
 	m := sortUpdateTime(used(accounts))
 
 	fmt.Println()
-	fmt.Println("---------------------------------")
-	fmt.Println("  Most recently used sandboxes")
-	fmt.Println("---------------------------------")
+	fmt.Println("# Most recently used sandboxes")
 	fmt.Println()
 	printHeaders(w)
 	for i := 0; i < 10; i++ {
@@ -185,12 +183,10 @@ func printOldest(accounts []Account) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 
 	fmt.Println()
-	fmt.Println("-----------------------------")
-	fmt.Println("  Oldest sandboxes in use")
-	fmt.Println("-----------------------------")
+	fmt.Println("# Oldest sandboxes in use")
 	fmt.Println()
 	printHeaders(w)
-	for i := 1; i <= 10; i++ {
+	for i := 10; i >= 1; i-- {
 		fmt.Fprintln(w, m[len(m)-i])
 	}
 	w.Flush()
@@ -217,9 +213,7 @@ func printBroken(accounts []Account) {
 	}
 	if len(m) > 0 {
 		fmt.Println()
-		fmt.Println("------------------------")
-		fmt.Println("    Broken sandboxes")
-		fmt.Println("------------------------")
+		fmt.Println("# Broken sandboxes")
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 		printHeaders(w)
 		for _, line := range m {
