@@ -48,6 +48,7 @@ func (a Account) String() string {
 	}
 
 	updatetime := time.Unix(ti, 0)
+	diff := time.Now().Sub(updatetime)
 	return strings.Join([]string{
 		a.Name,
 		strconv.FormatBool(a.Available),
@@ -58,7 +59,7 @@ func (a Account) String() string {
 		a.OwnerEmail,
 		a.Zone,
 		a.HostedZoneId,
-		updatetime.Format(time.RFC3339),
+		fmt.Sprintf("%s (%dd)", updatetime.Format(time.RFC3339), int(diff.Hours()/24)),
 		a.Comment,
 	}, separator)
 }
