@@ -156,32 +156,57 @@ func printMostRecentlyUsed(accounts []Account) {
 	m := sortUpdateTime(used(accounts))
 
 	fmt.Println()
-	fmt.Println("Most recently used sandboxes:")
+	fmt.Println("---------------------------------")
+	fmt.Println("  Most recently used sandboxes")
+	fmt.Println("---------------------------------")
+	fmt.Println()
 	printHeaders()
 	for i := 0; i < 10; i++ {
 		fmt.Println(m[i])
 	}
 }
 
-func printBroken(accounts []Account) {
+func printOldest(accounts []Account) {
+	m := sortUpdateTime(used(accounts))
+
 	fmt.Println()
-	fmt.Println("Broken sandboxes:")
+	fmt.Println("-----------------------------")
+	fmt.Println("  Oldest sandboxes in use")
+	fmt.Println("-----------------------------")
+	fmt.Println()
 	printHeaders()
+	for i := 1; i <= 10; i++ {
+		fmt.Println(m[len(m)-i])
+	}
+}
+
+func printBroken(accounts []Account) {
+	m := []string{}
 	for _, sandbox := range accounts {
 		if sandbox.AwsAccessKeyId == "" {
-			fmt.Printf("%v %v\n", sandbox, "Access key missing")
+			m = append(m, fmt.Sprintf("%v %v\n", sandbox, "Access key missing"))
 		}
 		if sandbox.AwsSecretAccessKey == "" {
-			fmt.Printf("%v %v\n", sandbox, "Access secret key missing")
+			m = append(m, fmt.Sprintf("%v %v\n", sandbox, "Access secret key missing"))
 		}
 		if sandbox.Zone == "" {
-			fmt.Printf("%v %v\n", sandbox, "Zone missing")
+			m = append(m, fmt.Sprintf("%v %v\n", sandbox, "Zone missing"))
 		}
 		if sandbox.HostedZoneId == "" {
-			fmt.Printf("%v %v\n", sandbox, "HostedZoneId missing")
+			m = append(m, fmt.Sprintf("%v %v\n", sandbox, "HostedZoneId missing"))
 		}
 		if !sandbox.Available && sandbox.Owner == "" && sandbox.OwnerEmail == "" {
-			fmt.Printf("%v %v\n", sandbox, "Owner missing")
+			m = append(m, fmt.Sprintf("%v %v\n", sandbox, "Owner missing"))
+		}
+	}
+	if len(m) > 0 {
+		fmt.Println()
+		fmt.Println("------------------------")
+		fmt.Println("    Broken sandboxes")
+		fmt.Println("------------------------")
+		printHeaders()
+		for _, line := range m {
+			fmt.Print(line)
 		}
 	}
 }
@@ -260,8 +285,11 @@ func main() {
 		os.Exit(0)
 	}
 	usedAccounts := used(accounts)
+	fmt.Println()
 	fmt.Println("Total Used:", len(usedAccounts), "/", len(accounts))
+	fmt.Println()
 
 	printMostRecentlyUsed(accounts)
+	printOldest(accounts)
 	printBroken(accounts)
 }
