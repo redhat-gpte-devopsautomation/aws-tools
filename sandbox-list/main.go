@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+// TODO: use https://golang.org/pkg/text/tabwriter/
+
 var csv bool
 var all bool
 
@@ -49,6 +51,14 @@ func (a Account) String() string {
 
 	updatetime := time.Unix(ti, 0)
 	diff := time.Now().Sub(updatetime)
+
+	var supdatetime string
+	if csv {
+		supdatetime = updatetime.Format(time.RFC3339)
+	} else {
+		supdatetime = fmt.Sprintf("%s (%dd)", updatetime.Format(time.RFC3339), int(diff.Hours()/24))
+	}
+
 	return strings.Join([]string{
 		a.Name,
 		strconv.FormatBool(a.Available),
@@ -59,7 +69,7 @@ func (a Account) String() string {
 		a.OwnerEmail,
 		a.Zone,
 		a.HostedZoneId,
-		fmt.Sprintf("%s (%dd)", updatetime.Format(time.RFC3339), int(diff.Hours()/24)),
+		supdatetime,
 		a.Comment,
 	}, separator)
 }
@@ -287,7 +297,6 @@ func main() {
 	usedAccounts := used(accounts)
 	fmt.Println()
 	fmt.Println("Total Used:", len(usedAccounts), "/", len(accounts))
-	fmt.Println()
 
 	printMostRecentlyUsed(accounts)
 	printOldest(accounts)
