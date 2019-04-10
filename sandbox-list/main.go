@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
@@ -20,6 +21,7 @@ import (
 
 var csv bool
 var all bool
+var padding int = 2
 
 type Account struct {
 	Name               string  `json:"name"`
@@ -56,7 +58,7 @@ func (a Account) String() string {
 	if csv {
 		supdatetime = updatetime.Format(time.RFC3339)
 	} else {
-		supdatetime = fmt.Sprintf("%s (%dd)", updatetime.Format(time.RFC3339), int(diff.Hours()/24))
+		supdatetime = fmt.Sprintf("%s (%dd)", updatetime.Format("2006-01-02 15:04"), int(diff.Hours()/24))
 	}
 
 	return strings.Join([]string{
@@ -74,7 +76,7 @@ func (a Account) String() string {
 	}, separator)
 }
 
-func printHeaders() {
+func printHeaders(w *tabwriter.Writer) {
 	var separator string
 	if csv {
 		separator = ","
@@ -84,7 +86,7 @@ func printHeaders() {
 
 	headers := []string{
 		"Name",
-		"Available",
+		"Avail",
 		"Guid",
 		"Envtype",
 		"AccountId",
@@ -96,9 +98,9 @@ func printHeaders() {
 		"Comment",
 	}
 	for _, h := range headers {
-		fmt.Printf("%s%s", h, separator)
+		fmt.Fprintf(w, "%s%s", h, separator)
 	}
-	fmt.Println()
+	fmt.Fprintln(w)
 }
 
 func parseFlags() {
@@ -163,6 +165,7 @@ func countUsed(accounts []Account) int {
 }
 
 func printMostRecentlyUsed(accounts []Account) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 	m := sortUpdateTime(used(accounts))
 
 	fmt.Println()
@@ -170,24 +173,27 @@ func printMostRecentlyUsed(accounts []Account) {
 	fmt.Println("  Most recently used sandboxes")
 	fmt.Println("---------------------------------")
 	fmt.Println()
-	printHeaders()
+	printHeaders(w)
 	for i := 0; i < 10; i++ {
-		fmt.Println(m[i])
+		fmt.Fprintln(w, m[i])
 	}
+	w.Flush()
 }
 
 func printOldest(accounts []Account) {
 	m := sortUpdateTime(used(accounts))
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 
 	fmt.Println()
 	fmt.Println("-----------------------------")
 	fmt.Println("  Oldest sandboxes in use")
 	fmt.Println("-----------------------------")
 	fmt.Println()
-	printHeaders()
+	printHeaders(w)
 	for i := 1; i <= 10; i++ {
-		fmt.Println(m[len(m)-i])
+		fmt.Fprintln(w, m[len(m)-i])
 	}
+	w.Flush()
 }
 
 func printBroken(accounts []Account) {
@@ -214,10 +220,12 @@ func printBroken(accounts []Account) {
 		fmt.Println("------------------------")
 		fmt.Println("    Broken sandboxes")
 		fmt.Println("------------------------")
-		printHeaders()
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
+		printHeaders(w)
 		for _, line := range m {
-			fmt.Print(line)
+			fmt.Fprint(w, line)
 		}
+		w.Flush()
 	}
 }
 
@@ -288,10 +296,12 @@ func main() {
 
 	accounts := buildAccounts(result)
 	if all {
-		printHeaders()
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
+		printHeaders(w)
 		for _, sandbox := range sortUpdateTime(accounts) {
-			fmt.Println(sandbox)
+			fmt.Fprintln(w, sandbox)
 		}
+		w.Flush()
 		os.Exit(0)
 	}
 	usedAccounts := used(accounts)
