@@ -465,6 +465,8 @@ func ec2ImageExists(imageId string) bool {
 			switch aerr.Code() {
 			case "InvalidImageID.NotFound":
 				return false
+			case "InvalidAMIID.NotFound":
+				return false
 			default:
 				logErr.Println(aerr.Code())
 				logErr.Println(aerr.Error())
