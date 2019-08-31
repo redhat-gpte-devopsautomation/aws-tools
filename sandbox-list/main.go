@@ -265,9 +265,16 @@ func main() {
 		ProjectionExpression:      expr.Projection(),
 	}
 
-	result, err := svc.Scan(input)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
+	accounts := []Account{}
+	errscan := svc.ScanPages(input,
+		func(page *dynamodb.ScanOutput, lastPage bool) bool {
+			accounts = append(accounts, buildAccounts(page)...)
+			return true
+		})
+
+	//result, err := svc.Scan(input)
+	if errscan != nil {
+		if aerr, ok := errscan.(awserr.Error); ok {
 			switch aerr.Code() {
 			case dynamodb.ErrCodeProvisionedThroughputExceededException:
 				fmt.Println(dynamodb.ErrCodeProvisionedThroughputExceededException, aerr.Error())
@@ -283,12 +290,11 @@ func main() {
 		} else {
 			// Print the error, cast err to awserr.Error to get the Code and
 			// Message from an error.
-			fmt.Println(err.Error())
+			fmt.Println(errscan.Error())
 		}
 		return
 	}
 
-	accounts := buildAccounts(result)
 	if all {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 		printHeaders(w)
