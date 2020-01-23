@@ -1,0 +1,34 @@
+= aws-usage
+
+This tool captures usage for an AWS account. It shows the following:
+
+- total number of instances
+* stopped
+* running
+* per type
+* per region
+- total number of floating IPs
+- total number of Volumes
+- total size of Volumes in GiB
+- total number of Cores and VCPU
+- total number of Cores and VCPU per region
+- total amount of memory
+- total amount of memory per region
+
+
+The results are:
+
+- per region
+- per instance-type when applicable
+- total of all regions
+
+.build
+----
+go build
+----
+
+.run
+----
+export AWS_PROFILE=gpte
+./usage
+----
