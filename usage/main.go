@@ -91,9 +91,11 @@ func getAddresses(svc *ec2.EC2) []*ec2.Address {
 }
 
 func captureAddresses(region string, addresses []*ec2.Address) {
-	for _, prefix := range []string {"total.", region + "."} {
-		key := prefix + "floating_ips"
-		stats[key] = stats[key] + int64(len(addresses))
+	if len(addresses) > 0 {
+	  for _, prefix := range []string {"total.", region + "."} {
+		  key := prefix + "floating_ips"
+		  stats[key] = stats[key] + int64(len(addresses))
+	  }
 	}
 }
 
