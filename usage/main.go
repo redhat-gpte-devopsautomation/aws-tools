@@ -34,8 +34,8 @@ func buildTypeMap(types *ec2.DescribeInstanceTypesOutput) map[string] int64 {
 
 var stats = map[string] int64 {}
 
-func captureVolumes(region string, result *ec2.DescribeVolumesOutput) {
-	for _, volume := range result.Volumes {
+func captureVolumes(region string, result []*ec2.Volume) {
+	for _, volume := range result {
 		for _, prefix := range []string {"total.", region + "."} {
 			stats[prefix + "volumes.size_gib"] = stats[prefix + "volumes.size_gib"] + *volume.Size
 			stats[prefix + "volumes.count"] = stats[prefix + "volumes.count"] + 1
@@ -43,8 +43,14 @@ func captureVolumes(region string, result *ec2.DescribeVolumesOutput) {
 	}
 }
 
-func getVolumes(svc *ec2.EC2) *ec2.DescribeVolumesOutput {
-	result, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{})
+func getVolumes(svc *ec2.EC2) []*ec2.Volume {
+	volumes := []*ec2.Volume{}
+
+	err := svc.DescribeVolumesPages(&ec2.DescribeVolumesInput{},
+		func(page *ec2.DescribeVolumesOutput, lastPage bool) bool {
+			volumes = append(volumes, page.Volumes...)
+			return lastPage
+		})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -56,9 +62,9 @@ func getVolumes(svc *ec2.EC2) *ec2.DescribeVolumesOutput {
 			// Message from an error.
 			fmt.Println(err.Error())
 		}
-		fmt.Println(result)
+		fmt.Println(volumes)
 	}
-	return result
+	return volumes
 }
 
 func getAddresses(svc *ec2.EC2) *ec2.DescribeAddressesOutput {
@@ -81,28 +87,26 @@ func getAddresses(svc *ec2.EC2) *ec2.DescribeAddressesOutput {
 
 func captureInstances(
 	region string,
-	result *ec2.DescribeInstancesOutput,
+	instances []*ec2.Instance,
 	types *ec2.DescribeInstanceTypesOutput,
 	states []*string) {
 
 	tm := buildTypeMap(types)
 
-	for _, reservation := range result.Reservations {
-		for _, instance := range reservation.Instances {
-			for _, preprefix := range []string {"total.", region + "."} {
-				prefix := preprefix + *states[0] + "."
-				stats[prefix + "instances"] = stats[prefix + "instances"] + 1
-				stats[prefix + "instances." + *instance.InstanceType] = stats[prefix + "instances." + *instance.InstanceType] + 1
+	for _, instance := range instances {
+		for _, preprefix := range []string {"total.", region + "."} {
+			prefix := preprefix + *states[0] + "."
+			stats[prefix + "instances"] = stats[prefix + "instances"] + 1
+			stats[prefix + "instances." + *instance.InstanceType] = stats[prefix + "instances." + *instance.InstanceType] + 1
 
-				stats[prefix + "vcpus"] = stats[prefix + "vcpus"] + tm[*instance.InstanceType + ".vcpus"]
-				stats[prefix + "cores"] = stats[prefix + "cores"] + tm[*instance.InstanceType + ".cores"]
-				stats[prefix + "memory_mib"] = stats[prefix + "memory_mib"] + tm[*instance.InstanceType + ".memory"]
-			}
+			stats[prefix + "vcpus"] = stats[prefix + "vcpus"] + tm[*instance.InstanceType + ".vcpus"]
+			stats[prefix + "cores"] = stats[prefix + "cores"] + tm[*instance.InstanceType + ".cores"]
+			stats[prefix + "memory_mib"] = stats[prefix + "memory_mib"] + tm[*instance.InstanceType + ".memory"]
 		}
 	}
 }
 
-func getInstances(svc *ec2.EC2, states []*string) *ec2.DescribeInstancesOutput {
+func getInstances(svc *ec2.EC2, states []*string) []*ec2.Instance {
 	input := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -112,14 +116,14 @@ func getInstances(svc *ec2.EC2, states []*string) *ec2.DescribeInstancesOutput {
 		},
 	}
 
-	instances := []*DescribeInstancesOutput{}
-	err := svc.DescribeInstances(input,
-		func(page *ec2.DescribeInstanceOutput, lastePage bool) bool {
-			instances = instances
-
-		}
-
-	)
+	instances := []*ec2.Instance{}
+	err := svc.DescribeInstancesPages(input,
+		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+			for _, reservation := range(page.Reservations) {
+				instances = append(instances, reservation.Instances...)
+			}
+			return lastPage
+		})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
