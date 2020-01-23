@@ -67,7 +67,7 @@ func getVolumes(svc *ec2.EC2) []*ec2.Volume {
 	return volumes
 }
 
-func getAddresses(svc *ec2.EC2) *ec2.DescribeAddressesOutput {
+func getAddresses(svc *ec2.EC2) []*ec2.Address {
 	result, err := svc.DescribeAddresses(&ec2.DescribeAddressesInput{})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
@@ -82,7 +82,14 @@ func getAddresses(svc *ec2.EC2) *ec2.DescribeAddressesOutput {
 		}
 		fmt.Println(result)
 	}
-	return result
+	return result.Addresses
+}
+
+func captureAddresses(region string, addresses []*ec2.Address) {
+	for _, prefix := range []string {"total.", region + "."} {
+		key := prefix + "floating_ips"
+		stats[key] = stats[key] + int64(len(addresses))
+	}
 }
 
 func captureInstances(
@@ -162,9 +169,6 @@ func main() {
 	regions, _ := svcGlob.DescribeRegions(&ec2.DescribeRegionsInput{})
 
 	for _, region := range regions.Regions {
-		if *region.RegionName != "eu-central-1" {
-			continue
-		}
 		sess, _ := session.NewSession(
 			&aws.Config{
 				Region:     region.RegionName,
@@ -173,8 +177,9 @@ func main() {
 		)
 		svc := ec2.New(sess)
 
-		volumes := getVolumes(svc)
-		captureVolumes(*region.RegionName, volumes)
+		captureVolumes(*region.RegionName, getVolumes(svc))
+
+		captureAddresses(*region.RegionName, getAddresses(svc))
 
 		states := []*string{
 			aws.String("running"),
