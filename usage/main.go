@@ -4,6 +4,7 @@ import (
 	"os"
 	"encoding/json"
 	"fmt"
+	"log"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,11 +12,17 @@ import (
 )
 
 var maxRetries = 100
+var stats = map[string] int64 {}
 
-func buildTypeMap(types *ec2.DescribeInstanceTypesOutput) map[string] int64 {
+// Logging
+var logErr *log.Logger
+var logOut *log.Logger
+
+
+func buildTypeMap(types []*ec2.InstanceTypeInfo) map[string] int64 {
 	typesMap := map[string] int64 {}
 
-	for _, t := range types.InstanceTypes {
+	for _, t := range types {
 		if t.VCpuInfo.DefaultVCpus != nil {
 			typesMap[*t.InstanceType + ".vcpus"] = *t.VCpuInfo.DefaultVCpus
 		}
@@ -31,8 +38,6 @@ func buildTypeMap(types *ec2.DescribeInstanceTypesOutput) map[string] int64 {
 
 	return typesMap
 }
-
-var stats = map[string] int64 {}
 
 func captureVolumes(region string, result []*ec2.Volume) {
 	for _, volume := range result {
@@ -95,13 +100,14 @@ func captureAddresses(region string, addresses []*ec2.Address) {
 func captureInstances(
 	region string,
 	instances []*ec2.Instance,
-	types *ec2.DescribeInstanceTypesOutput,
+	tm map[string] int64,
 	states []*string) {
-
-	tm := buildTypeMap(types)
 
 	for _, instance := range instances {
 		for _, preprefix := range []string {"total.", region + "."} {
+			if _, ok := tm[*instance.InstanceType + ".vcpus"] ; ! ok {
+				logErr.Println("Instance type", *instance.InstanceType, "not found.")
+			}
 			prefix := preprefix + *states[0] + "."
 			stats[prefix + "instances"] = stats[prefix + "instances"] + 1
 			stats[prefix + "instances." + *instance.InstanceType] = stats[prefix + "instances." + *instance.InstanceType] + 1
@@ -147,6 +153,40 @@ func getInstances(svc *ec2.EC2, states []*string) []*ec2.Instance {
 	return instances
 }
 
+func getTypes(svc *ec2.EC2) []*ec2.InstanceTypeInfo {
+
+	types := []*ec2.InstanceTypeInfo{}
+
+	output, err := svc.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{})
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
+		}
+	}
+
+
+	types = append(types, output.InstanceTypes...)
+
+	for output.NextToken != nil {
+		output, err = svc.DescribeInstanceTypes(
+			&ec2.DescribeInstanceTypesInput{
+				NextToken: output.NextToken,
+			})
+
+		types = append(types, output.InstanceTypes...)
+
+	}
+	return types
+}
+
 func main() {
 	if os.Getenv("AWS_PROFILE") == "" {
 		os.Setenv("AWS_PROFILE", "gpte")
@@ -155,6 +195,9 @@ func main() {
 	if os.Getenv("AWS_REGION") == "" {
 		os.Setenv("AWS_REGION", "us-east-1")
 	}
+
+	logErr = log.New(os.Stderr, "!!! ", log.LstdFlags)
+	logOut = log.New(os.Stdout, "    ", log.LstdFlags)
 
 	sess, _ := session.NewSession(
 		&aws.Config{
@@ -165,8 +208,10 @@ func main() {
 
 	svcGlob := ec2.New(sess)
 
-	types, _ := svcGlob.DescribeInstanceTypes(&ec2.DescribeInstanceTypesInput{})
+	types := getTypes(svcGlob)
 	regions, _ := svcGlob.DescribeRegions(&ec2.DescribeRegionsInput{})
+	tm := buildTypeMap(types)
+
 
 	for _, region := range regions.Regions {
 		sess, _ := session.NewSession(
@@ -186,7 +231,7 @@ func main() {
 			aws.String("pending"),
 		}
 		instances := getInstances(svc, states)
-		captureInstances(*region.RegionName, instances, types, states)
+		captureInstances(*region.RegionName, instances, tm, states)
 
 		states = []*string{
 			aws.String("stopped"),
@@ -194,7 +239,7 @@ func main() {
 			aws.String("stopping"),
 		}
 		instances = getInstances(svc, states)
-		captureInstances(*region.RegionName, instances, types, states)
+		captureInstances(*region.RegionName, instances, tm, states)
 	}
 
 	enc := json.NewEncoder(os.Stdout)
