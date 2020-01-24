@@ -24,6 +24,7 @@ The results are:
 
 .build
 ----
+go get
 go build
 ----
 
