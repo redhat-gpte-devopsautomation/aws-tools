@@ -22,6 +22,8 @@ The results are:
 - per instance-type when applicable
 - total of all regions
 
+The output is both json (stdout) and metrics pushed to a prometheus gateway.
+
 .build
 ----
 go get
@@ -31,5 +33,6 @@ go build
 .run
 ----
 export AWS_PROFILE=gpte
+export PROMETHEUS_GATEWAY=http://localhost:9091
 ./usage
 ----
