@@ -1,0 +1,70 @@
+= aws-usage
+
+This tool captures usage for an AWS account. It shows the following:
+
+- total number of instances
+* stopped
+* running
+* per type
+* per region
+- total number of floating IPs
+- total number of Volumes
+- total size of Volumes in GiB
+- total number of Cores and VCPU
+- total number of Cores and VCPU per region
+- total amount of memory
+- total amount of memory per region
+
+
+The results are:
+
+- per region
+- per instance-type when applicable
+- total of all regions
+
+The output is both json (stdout) and metrics pushed to a prometheus gateway.
+
+.build
+----
+go get
+go build
+----
+
+.run
+----
+export AWS_PROFILE=gpte
+export PROMETHEUS_GATEWAY=http://localhost:9091
+./usage
+----
+
+
+.sample output
+----
+[fridim@lolo usage]$ export AWS_PROFILE=dev; export PROMETHEUS_GATEWAY=http://localhost:9091 ; go build && ./usage
+{
+ "total.floating_ips": 20,
+ "total.running.cores": 36,
+ "total.running.instances": 26,
+ "total.running.instances.m5.large": 10,
+ "total.running.instances.m5.xlarge": 10,
+ "total.running.instances.t3.medium": 4,
+ "total.running.instances.t3.small": 2,
+ "total.running.memory_mib": 266240,
+ "total.running.vcpus": 72,
+ "total.volumes.count": 27,
+ "total.volumes.size_gib": 1901,
+ "us-west-2.floating_ips": 20,
+ "us-west-2.running.cores": 36,
+ "us-west-2.running.instances": 26,
+ "us-west-2.running.instances.m5.large": 10,
+ "us-west-2.running.instances.m5.xlarge": 10,
+ "us-west-2.running.instances.t3.medium": 4,
+ "us-west-2.running.instances.t3.small": 2,
+ "us-west-2.running.memory_mib": 266240,
+ "us-west-2.running.vcpus": 72,
+ "us-west-2.volumes.count": 27,
+ "us-west-2.volumes.size_gib": 1901
+}
+----
+
+<Sample graph coming soon.>
