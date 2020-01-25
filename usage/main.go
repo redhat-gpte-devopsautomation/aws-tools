@@ -22,7 +22,7 @@ var account string
 var logErr *log.Logger
 var logOut *log.Logger
 
-// TODO: cleanup this
+// TODO: cleanup or use this
 var (
 	completionTime = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "aws_usage_last_completion_timestamp_seconds",
