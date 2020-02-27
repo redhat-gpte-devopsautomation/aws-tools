@@ -1,0 +1,7 @@
+= Conan The Destroyer (of sandboxes)
+
+This tool cleans up sandboxes.
+
+It watches the pool of sandboxes, and look for them marked as `to_delete`.
+
+Then it runs link:https://github.com/rebuy-de/aws-nuke[aws-nuke] on those, and put them back in the pool of available sandboxes.
