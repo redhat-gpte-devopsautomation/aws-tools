@@ -5,3 +5,22 @@ This tool cleans up sandboxes.
 It watches the pool of sandboxes, and look for them marked as `to_delete`.
 
 Then it runs link:https://github.com/rebuy-de/aws-nuke[aws-nuke] on those, and put them back in the pool of available sandboxes.
+
+= Install
+
+
+. Install the aws credentials
++
+.Setup `.aws/credentials`
+----
+[pool-manager-admin]
+aws_access_key_id=...
+aws_secret_access_key=...
+----
+. Install the systemd Unit link:conan.service[conan.service]
+. Start and enable the service
++
+----
+systemctl start conan
+systemctl enable conan
+----
