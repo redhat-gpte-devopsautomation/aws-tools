@@ -19,13 +19,15 @@ import (
 
 // TODO: use https://golang.org/pkg/text/tabwriter/
 
-var csv bool
-var all bool
+var csvFlag bool
+var allFlag bool
+var toDeleteFlag bool
 var padding int = 2
 
 type Account struct {
 	Name               string  `json:"name"`
 	Available          bool    `json:"available"`
+	ToDelete           bool    `json:"to_delete"`
 	Guid               string  `json:"guid"`
 	Envtype            string  `json:"envtype"`
 	AccountId          string  `json:"account_id"`
@@ -41,7 +43,7 @@ type Account struct {
 
 func (a Account) String() string {
 	var separator string
-	if csv {
+	if csvFlag {
 		separator = ","
 	} else {
 		separator = "\t"
@@ -55,10 +57,19 @@ func (a Account) String() string {
 	diff := time.Now().Sub(updatetime)
 
 	var supdatetime string
-	if csv {
+	if csvFlag {
 		supdatetime = updatetime.Format(time.RFC3339)
 	} else {
 		supdatetime = fmt.Sprintf("%s (%dd)", updatetime.Format("2006-01-02 15:04"), int(diff.Hours()/24))
+	}
+
+	var toDeleteString string
+	/* Do not write true | false to not break current scripts that filter
+           using true|false on the whole line */
+	if a.ToDelete {
+		toDeleteString = "TODELETE"
+	} else {
+		toDeleteString = "no"
 	}
 
 	return strings.Join([]string{
@@ -72,13 +83,14 @@ func (a Account) String() string {
 		a.Zone,
 		a.HostedZoneId,
 		supdatetime,
+		toDeleteString,
 		a.Comment,
 	}, separator)
 }
 
 func printHeaders(w *tabwriter.Writer) {
 	var separator string
-	if csv {
+	if csvFlag {
 		separator = ","
 	} else {
 		separator = "\t"
@@ -95,6 +107,7 @@ func printHeaders(w *tabwriter.Writer) {
 		"Zone",
 		"HostedZoneId",
 		"UpdateTime",
+		"ToDelete?",
 		"Comment",
 	}
 	for _, h := range headers {
@@ -105,8 +118,9 @@ func printHeaders(w *tabwriter.Writer) {
 
 func parseFlags() {
 	// Option to show event
-	flag.BoolVar(&csv, "csv", false, "Use CSV format to print accounts.")
-	flag.BoolVar(&all, "all", false, "Just print all sandboxes.")
+	flag.BoolVar(&csvFlag, "csv", false, "Use CSV format to print accounts.")
+	flag.BoolVar(&allFlag, "all", false, "Just print all sandboxes.")
+	flag.BoolVar(&toDeleteFlag, "to-delete", false, "Print all marked for deletion.")
 	flag.Parse()
 }
 
@@ -237,6 +251,7 @@ func main() {
 	proj := expression.NamesList(
 		expression.Name("name"),
 		expression.Name("available"),
+		expression.Name("to_delete"),
 		expression.Name("guid"),
 		expression.Name("envtype"),
 		expression.Name("owner"),
@@ -250,7 +265,14 @@ func main() {
 		expression.Name("aws_secret_access_key"),
 	)
 
-	expr, err := expression.NewBuilder().WithProjection(proj).Build()
+	builder := expression.NewBuilder()
+
+	if toDeleteFlag {
+		filt := expression.Name("to_delete").Equal(expression.Value(true))
+		builder = builder.WithFilter(filt)
+	}
+
+	expr, err := builder.WithProjection(proj).Build()
 
 	if err != nil {
 		fmt.Println("Got error building expression:")
@@ -263,6 +285,7 @@ func main() {
 		ExpressionAttributeValues: expr.Values(),
 		TableName:                 aws.String("accounts"),
 		ProjectionExpression:      expr.Projection(),
+		FilterExpression:          expr.Filter(),
 	}
 
 	accounts := []Account{}
@@ -295,7 +318,7 @@ func main() {
 		return
 	}
 
-	if all {
+	if allFlag || toDeleteFlag {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 		printHeaders(w)
 		for _, sandbox := range sortUpdateTime(accounts) {
@@ -304,6 +327,7 @@ func main() {
 		w.Flush()
 		os.Exit(0)
 	}
+
 	usedAccounts := used(accounts)
 	fmt.Println()
 	fmt.Println("Total Used:", len(usedAccounts), "/", len(accounts))
