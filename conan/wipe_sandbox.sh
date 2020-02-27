@@ -20,6 +20,16 @@ EOM
 sandbox=$1
 
 [ -z "${sandbox}" ] && return
+mkdir -p ~/pool_management
+logfile=~/pool_management/reset_${sandbox}.log
 
 disable_sandbox "${sandbox}"
-sandbox_reset.sh "${sandbox}"
+
+sandbox_reset.sh "${sandbox}" > $logfile
+
+
+if [ $? = 0 ]; then
+    echo "$(date) ${sandbox} reset OK"
+else
+    echo "$(date) ${sandbox} reset FAILED. See ${logfile}" >&2
+fi
