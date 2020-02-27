@@ -22,6 +22,7 @@ import (
 var csvFlag bool
 var allFlag bool
 var toDeleteFlag bool
+var noHeadersFlag bool
 var padding int = 2
 
 type Account struct {
@@ -89,6 +90,10 @@ func (a Account) String() string {
 }
 
 func printHeaders(w *tabwriter.Writer) {
+	if noHeadersFlag {
+		return
+	}
+
 	var separator string
 	if csvFlag {
 		separator = ","
@@ -121,6 +126,7 @@ func parseFlags() {
 	flag.BoolVar(&csvFlag, "csv", false, "Use CSV format to print accounts.")
 	flag.BoolVar(&allFlag, "all", false, "Just print all sandboxes.")
 	flag.BoolVar(&toDeleteFlag, "to-delete", false, "Print all marked for deletion.")
+	flag.BoolVar(&noHeadersFlag, "no-headers", false, "Don't print headers.")
 	flag.Parse()
 }
 
