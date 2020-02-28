@@ -21,7 +21,7 @@ pre_checks() {
              rush \
              ansible-playbook \
              kinit; do
-        if ! command -v $c; then
+        if ! command -v $c &>/dev/null; then
             echo "'${c}' command not found"
             exit 2
         fi
@@ -35,7 +35,7 @@ cd ${ORIG}
 while true; do
 
     sandbox-list --to-delete --no-headers \
-        | rush -j ${threads} './wipe_sandbox.sh {1}'
+        | rush --immediate-output -j ${threads} './wipe_sandbox.sh {1}'
 
     sleep ${poll_interval}
 done
