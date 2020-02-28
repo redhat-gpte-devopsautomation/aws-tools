@@ -7,8 +7,7 @@ Documentation=https://github.com/redhat-gpte-devopsautomation/aws-tools/tree/mas
 User=opentlc-mgr
 Group=opentlc-mgr
 Type=simple
-Environment=PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/opentlc-mgr/.local/bin:/home/opentlc-mgr/bin
-ExecStart=/bin/bash /opt/rh/conan.sh
+ExecStart=/bin/bash /home/opentlc-mgr/pool_management/aws-tools/conan/conan.sh
 Restart=on-failure
 StartLimitBurst=3
 StartLimitInterval=60s

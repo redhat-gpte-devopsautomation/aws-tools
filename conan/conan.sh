@@ -19,7 +19,8 @@ ORIG="$(cd "$(dirname "$0")" || exit; pwd)"
 pre_checks() {
     for c in sandbox-list \
              rush \
-             sandbox_reset.sh; do
+             ansible-playbook \
+             kinit; do
         if ! command -v $c; then
             echo "'${c}' command not found"
             exit 2
