@@ -21,14 +21,14 @@ import (
 
 var csvFlag bool
 var allFlag bool
-var toDeleteFlag bool
+var toCleanupFlag bool
 var noHeadersFlag bool
 var padding int = 2
 
 type Account struct {
 	Name               string  `json:"name"`
 	Available          bool    `json:"available"`
-	ToDelete           bool    `json:"to_delete"`
+	ToCleanup          bool    `json:"to_cleanup"`
 	Guid               string  `json:"guid"`
 	Envtype            string  `json:"envtype"`
 	AccountId          string  `json:"account_id"`
@@ -64,13 +64,13 @@ func (a Account) String() string {
 		supdatetime = fmt.Sprintf("%s (%dd)", updatetime.Format("2006-01-02 15:04"), int(diff.Hours()/24))
 	}
 
-	var toDeleteString string
+	var toCleanupString string
 	/* Do not write true | false to not break current scripts that filter
            using true|false on the whole line */
-	if a.ToDelete {
-		toDeleteString = "TODELETE"
+	if a.ToCleanup {
+		toCleanupString = "TO_CLEANUP"
 	} else {
-		toDeleteString = "no"
+		toCleanupString = "no"
 	}
 
 	return strings.Join([]string{
@@ -84,7 +84,7 @@ func (a Account) String() string {
 		a.Zone,
 		a.HostedZoneId,
 		supdatetime,
-		toDeleteString,
+		toCleanupString,
 		a.Comment,
 	}, separator)
 }
@@ -112,7 +112,7 @@ func printHeaders(w *tabwriter.Writer) {
 		"Zone",
 		"HostedZoneId",
 		"UpdateTime",
-		"ToDelete?",
+		"ToCleanup?",
 		"Comment",
 	}
 	for _, h := range headers {
@@ -125,7 +125,7 @@ func parseFlags() {
 	// Option to show event
 	flag.BoolVar(&csvFlag, "csv", false, "Use CSV format to print accounts.")
 	flag.BoolVar(&allFlag, "all", false, "Just print all sandboxes.")
-	flag.BoolVar(&toDeleteFlag, "to-delete", false, "Print all marked for deletion.")
+	flag.BoolVar(&toCleanupFlag, "to-cleanup", false, "Print all marked for deletion.")
 	flag.BoolVar(&noHeadersFlag, "no-headers", false, "Don't print headers.")
 	flag.Parse()
 }
@@ -257,7 +257,7 @@ func main() {
 	proj := expression.NamesList(
 		expression.Name("name"),
 		expression.Name("available"),
-		expression.Name("to_delete"),
+		expression.Name("to_cleanup"),
 		expression.Name("guid"),
 		expression.Name("envtype"),
 		expression.Name("owner"),
@@ -273,8 +273,8 @@ func main() {
 
 	builder := expression.NewBuilder()
 
-	if toDeleteFlag {
-		filt := expression.Name("to_delete").Equal(expression.Value(true))
+	if toCleanupFlag {
+		filt := expression.Name("to_cleanup").Equal(expression.Value(true))
 		builder = builder.WithFilter(filt)
 	}
 
@@ -324,7 +324,7 @@ func main() {
 		return
 	}
 
-	if allFlag || toDeleteFlag {
+	if allFlag || toCleanupFlag {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, ' ', 0)
 		printHeaders(w)
 		for _, sandbox := range sortUpdateTime(accounts) {

@@ -9,7 +9,7 @@ set -u -o pipefail
 # Number of aws-nuke to run in parallel
 threads=10
 
-# Pause between each iteration that gets the list of sandboxes to delete
+# Pause between each iteration that gets the list of sandboxes to cleanup
 poll_interval=60
 
 ##############
@@ -34,7 +34,7 @@ cd ${ORIG}
 
 while true; do
 
-    sandbox-list --to-delete --no-headers \
+    sandbox-list --to-cleanup --no-headers \
         | rush --immediate-output -j ${threads} './wipe_sandbox.sh {1}'
 
     sleep ${poll_interval}
