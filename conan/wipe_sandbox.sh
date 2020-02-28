@@ -36,6 +36,8 @@ sandbox_reset() {
     echo "$(date) reset sandbox${s}" >> ~/pool_management/reset.log
 
     echo "$(date) ${sandbox} reset starting..."
+
+    export ANSIBLE_COMMAND_WARNINGS=False
     ansible-playbook -i localhost, \
                      -e _account_num=${s} \
                      ${ORIG}/reset_single.yml > ${logfile}
