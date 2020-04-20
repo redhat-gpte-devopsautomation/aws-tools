@@ -125,7 +125,7 @@ func parseFlags() {
 	// Option to show event
 	flag.BoolVar(&csvFlag, "csv", false, "Use CSV format to print accounts.")
 	flag.BoolVar(&allFlag, "all", false, "Just print all sandboxes.")
-	flag.BoolVar(&toCleanupFlag, "to-cleanup", false, "Print all marked for deletion.")
+	flag.BoolVar(&toCleanupFlag, "to-cleanup", false, "Print all marked for cleanup.")
 	flag.BoolVar(&noHeadersFlag, "no-headers", false, "Don't print headers.")
 	flag.Parse()
 }
