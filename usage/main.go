@@ -175,17 +175,17 @@ func captureInstances(
 	countInstancesByType := map[string] float64{}
 
 	for _, instance := range instances {
+		instanceGauge.Inc()
+		vcpuGauge.Add(float64(tm[*instance.InstanceType + ".vcpus"]))
+		coreGauge.Add(float64(tm[*instance.InstanceType + ".cores"]))
+		memoryGauge.Add(float64(tm[*instance.InstanceType + ".memory"]))
+
+		countInstancesByType[*instance.InstanceType] = countInstancesByType[*instance.InstanceType] + 1
+
+		if _, ok := tm[*instance.InstanceType + ".vcpus"] ; ! ok {
+			logErr.Println("Instance type", *instance.InstanceType, "not found.")
+		}
 		for _, preprefix := range []string {"total.", region + "."} {
-			instanceGauge.Inc()
-			vcpuGauge.Add(float64(tm[*instance.InstanceType + ".vcpus"]))
-			coreGauge.Add(float64(tm[*instance.InstanceType + ".cores"]))
-			memoryGauge.Add(float64(tm[*instance.InstanceType + ".memory"]))
-
-			countInstancesByType[*instance.InstanceType] = countInstancesByType[*instance.InstanceType] + 1
-
-			if _, ok := tm[*instance.InstanceType + ".vcpus"] ; ! ok {
-				logErr.Println("Instance type", *instance.InstanceType, "not found.")
-			}
 			prefix := preprefix + *states[0] + "."
 			stats[prefix + "instances"] = stats[prefix + "instances"] + 1
 			stats[prefix + "instances." + *instance.InstanceType] = stats[prefix + "instances." + *instance.InstanceType] + 1
