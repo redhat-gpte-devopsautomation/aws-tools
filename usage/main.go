@@ -8,6 +8,7 @@ import (
 	"log"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -275,6 +276,39 @@ func getTypes(svc *ec2.EC2) []*ec2.InstanceTypeInfo {
 	return types
 }
 
+/* S3 */
+
+func getBuckets(svc *s3.S3) []*s3.Bucket {
+	input := &s3.ListBucketsInput{}
+	result, err := svc.ListBuckets(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
+		}
+		return []*s3.Bucket{}
+	}
+	return result.Buckets
+}
+
+func captureBuckets(buckets []*s3.Bucket, pusher *push.Pusher) {
+	bucketGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "aws_usage_s3_buckets",
+			Help: "Total number of S3 buckets",
+		})
+	pusher.Collector(bucketGauge)
+
+	bucketGauge.Set(float64(len(buckets)))
+	stats["total.s3.buckets"] = int64(len(buckets))
+}
+
 func main() {
 
 	logErr = log.New(os.Stderr, "!!! ", log.LstdFlags)
@@ -303,6 +337,13 @@ func main() {
 	regions, _ := svcGlob.DescribeRegions(&ec2.DescribeRegionsInput{})
 	tm := buildTypeMap(types)
 
+	s3svc := s3.New(sess)
+	pusherGlobal := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
+		Grouping("account", account)
+	captureBuckets(getBuckets(s3svc), pusherGlobal)
+	if err := pusherGlobal.Push(); err != nil {
+		fmt.Println(err.Error())
+	}
 
 	for _, region := range regions.Regions {
 		pusher := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
