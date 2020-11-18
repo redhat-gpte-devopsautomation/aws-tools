@@ -146,28 +146,28 @@ func captureInstances(
 	region string,
 	instances []*ec2.Instance,
 	tm map[string] int64,
-	states []*string,
+	desc string,
 	pusher *push.Pusher) {
 
 	instanceGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "aws_usage_instances_" + *states[0],
-			Help: "Total number of instances " + *states[0],
+			Name: "aws_usage_instances_" + desc,
+			Help: "Total number of instances " + desc,
 		})
 	coreGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "aws_usage_cores_" + *states[0],
-			Help: "Total number of CPU Cores for " + *states[0] + " instances",
+			Name: "aws_usage_cores_" + desc,
+			Help: "Total number of CPU Cores for " + desc + " instances",
 		})
 	vcpuGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "aws_usage_vcpus_" + *states[0],
-			Help: "Total number of VCPUs for " + *states[0] + " instances",
+			Name: "aws_usage_vcpus_" + desc,
+			Help: "Total number of VCPUs for " + desc + " instances",
 		})
 	memoryGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "aws_usage_memory_mib_" + *states[0],
-			Help: "Total memory in MiB for " + *states[0] + " instances",
+			Name: "aws_usage_memory_mib_" + desc,
+			Help: "Total memory in MiB for " + desc + " instances",
 		})
 	pusher.Collector(instanceGauge).Collector(coreGauge).
 		Collector(vcpuGauge).Collector(memoryGauge)
@@ -187,7 +187,7 @@ func captureInstances(
 			logErr.Println("Instance type", *instance.InstanceType, "not found.")
 		}
 		for _, preprefix := range []string {"total.", region + "."} {
-			prefix := preprefix + *states[0] + "."
+			prefix := preprefix + desc + "."
 			stats[prefix + "instances"] = stats[prefix + "instances"] + 1
 			stats[prefix + "instances." + *instance.InstanceType] = stats[prefix + "instances." + *instance.InstanceType] + 1
 
@@ -200,22 +200,17 @@ func captureInstances(
 	for instanceType, count := range countInstancesByType {
 		instanceTypeGauge := prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "aws_usage_instances_" + strings.ReplaceAll(instanceType, ".", "_") + "_" + *states[0],
-				Help: "Total number of instances of type " + instanceType + " " + *states[0],
+				Name: "aws_usage_instances_" + strings.ReplaceAll(instanceType, ".", "_") + "_" + desc,
+				Help: "Total number of instances of type " + instanceType + " " + desc,
 			})
 		instanceTypeGauge.Set(count)
 		pusher.Collector(instanceTypeGauge)
 	}
 }
 
-func getInstances(svc *ec2.EC2, states []*string) []*ec2.Instance {
+func getInstances(svc *ec2.EC2, filters []*ec2.Filter) []*ec2.Instance {
 	input := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("instance-state-name"),
-				Values: states,
-			},
-		},
+		Filters: filters,
 	}
 
 	instances := []*ec2.Instance{}
@@ -319,6 +314,13 @@ func main() {
 	}
 
 	account = os.Getenv("AWS_PROFILE")
+	sandbox := ""
+
+	// If account is a sandbox, then save the information under the same "account"
+	if len(account) > 6 && account[0:7] == "sandbox" {
+		sandbox = account
+		account = "sandboxes"
+	}
 
 	if os.Getenv("PROMETHEUS_GATEWAY") == "" {
 		logErr.Println("PROMETHEUS_GATEWAY env variable must be define")
@@ -347,7 +349,13 @@ func main() {
 
 	for _, region := range regions.Regions {
 		pusher := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
-			Grouping("account", account).Grouping("region", *region.RegionName)
+			Grouping("account", account)
+
+		if sandbox != "" {
+			pusher.Grouping("sandbox", sandbox)
+		}
+
+		pusher.Grouping("region", *region.RegionName)
 
 		sess, _ := session.NewSession(
 			&aws.Config{
@@ -365,16 +373,48 @@ func main() {
 			aws.String("running"),
 			aws.String("pending"),
 		}
-		instances := getInstances(svc, states)
-		captureInstances(*region.RegionName, instances, tm, states, pusher)
+		filters := []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: states,
+			},
+		}
+		instances := getInstances(svc, filters)
+		captureInstances(*region.RegionName, instances, tm, "running", pusher)
+
+		// Running ocp4-cluster
+		filters = []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: states,
+			},
+			{
+				Name: aws.String("tag:env_type"),
+				Values: []*string{
+					aws.String("ocp4-cluster"),
+					aws.String("ocp4-workshop"),
+					aws.String("ocp-workshop"),
+				},
+			},
+		}
+		instances = getInstances(svc, filters)
+		captureInstances(*region.RegionName, instances, tm, "running_ocp_cluster", pusher)
+
+		// Instances stopped
 
 		states = []*string{
 			aws.String("stopped"),
 			aws.String("shutting-down"),
 			aws.String("stopping"),
 		}
-		instances = getInstances(svc, states)
-		captureInstances(*region.RegionName, instances, tm, states, pusher)
+		filters = []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: states,
+			},
+		}
+		instances = getInstances(svc, filters)
+		captureInstances(*region.RegionName, instances, tm, "stopped", pusher)
 		if err := pusher.Push(); err != nil {
 			fmt.Println(err.Error())
 		}
