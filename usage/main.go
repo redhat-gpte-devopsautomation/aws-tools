@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"strings"
 	"fmt"
+	"flag"
 	"log"
 	"github.com/aws/aws-sdk-go/aws"
+	"io/ioutil"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
+	"time"
 )
 
 var maxRetries = 100
@@ -22,6 +25,7 @@ var account string
 // Logging
 var logErr *log.Logger
 var logOut *log.Logger
+var logProfile *log.Logger
 
 // TODO: cleanup or use this
 var (
@@ -209,8 +213,11 @@ func captureInstances(
 }
 
 func getInstances(svc *ec2.EC2, filters []*ec2.Filter) []*ec2.Instance {
-	input := &ec2.DescribeInstancesInput{
-		Filters: filters,
+	input := &ec2.DescribeInstancesInput{}
+	if len(filters) > 0 {
+		input = &ec2.DescribeInstancesInput{
+			Filters: filters,
+		}
 	}
 
 	instances := []*ec2.Instance{}
@@ -304,11 +311,48 @@ func captureBuckets(buckets []*s3.Bucket, pusher *push.Pusher) {
 	stats["total.s3.buckets"] = int64(len(buckets))
 }
 
+func filterInstancesByState(instances []*ec2.Instance, states []*string) []*ec2.Instance {
+	result := []*ec2.Instance{}
+INSTANCES:
+	for _, instance := range instances {
+		for _, state := range states {
+			if *instance.State.Name == *state {
+				result = append(result, instance)
+				continue INSTANCES
+			}
+		}
+	}
+	return result
+}
+
 func main() {
 
 	logErr = log.New(os.Stderr, "!!! ", log.LstdFlags)
 	logOut = log.New(os.Stdout, "    ", log.LstdFlags)
 
+	f, err := os.OpenFile("aws-usage-profile.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+
+	var s3Flag bool
+	var addressFlag bool
+	var volumeFlag bool
+	var profileFlag bool
+	var resetFlag bool
+	flag.BoolVar(&s3Flag, "s3", true, "enable s3")
+	flag.BoolVar(&addressFlag, "addresses", true, "look for floating IPs")
+	flag.BoolVar(&volumeFlag, "volumes", true, "look for volumes")
+	flag.BoolVar(&profileFlag, "profile", false, "Enable profiling")
+	flag.BoolVar(&resetFlag, "reset", false, "Reset stats to zero for the account")
+
+	flag.Parse()
+
+	if profileFlag {
+		logProfile = log.New(f, "", log.LstdFlags)
+	} else {
+		logProfile = log.New(ioutil.Discard, "(d) ", log.LstdFlags)
+	}
 	if os.Getenv("AWS_PROFILE") == "" {
 		logErr.Println("AWS_PROFILE env variable must be define")
 	}
@@ -333,20 +377,45 @@ func main() {
 		},
 	)
 
-	svcGlob := ec2.New(sess)
 
-	types := getTypes(svcGlob)
-	regions, _ := svcGlob.DescribeRegions(&ec2.DescribeRegionsInput{})
-	tm := buildTypeMap(types)
+	if s3Flag {
+		pusherGlobal := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
+			Grouping("account", account)
 
-	s3svc := s3.New(sess)
-	pusherGlobal := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
-		Grouping("account", account)
-	captureBuckets(getBuckets(s3svc), pusherGlobal)
-	if err := pusherGlobal.Push(); err != nil {
-		fmt.Println(err.Error())
+		if sandbox != "" {
+			pusherGlobal.Grouping("sandbox", sandbox)
+		}
+		if resetFlag {
+			pusherGlobal.Delete()
+		} else {
+			s3svc := s3.New(sess)
+			start := time.Now()
+			captureBuckets(getBuckets(s3svc), pusherGlobal)
+			logProfile.Println("getBuckets+captureBuckets:", time.Since(start))
+			if err := pusherGlobal.Push(); err != nil {
+				fmt.Println(err.Error())
+			}
+		}
 	}
 
+	if resetFlag {
+		// Delete all
+		pusher := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
+			Grouping("account", account)
+
+		if sandbox != "" {
+			pusher.Grouping("sandbox", sandbox)
+		}
+		pusher.Delete()
+		return
+	}
+	svcGlob := ec2.New(sess)
+	types := getTypes(svcGlob)
+	start := time.Now()
+	tm := buildTypeMap(types)
+	logProfile.Println("buildTypeMap:", time.Since(start))
+
+	regions, _ := svcGlob.DescribeRegions(&ec2.DescribeRegionsInput{})
 	for _, region := range regions.Regions {
 		pusher := push.New(os.Getenv("PROMETHEUS_GATEWAY"), "aws-usage").
 			Grouping("account", account)
@@ -365,17 +434,26 @@ func main() {
 		)
 		svc := ec2.New(sess)
 
-		captureVolumes(*region.RegionName, getVolumes(svc), pusher)
+		if volumeFlag {
+			start = time.Now()
+			captureVolumes(*region.RegionName, getVolumes(svc), pusher)
+			logProfile.Println("getVolumes+captureVolumes", time.Since(start))
+		}
 
-		captureAddresses(*region.RegionName, getAddresses(svc), pusher)
+		if addressFlag {
+			start = time.Now()
+			captureAddresses(*region.RegionName, getAddresses(svc), pusher)
+			logProfile.Println("getAddresses+captureAddresses", time.Since(start))
+		}
 
 
-		// Instances stopped
-
+		// All Instances
 		states := []*string{
 			aws.String("stopped"),
 			aws.String("shutting-down"),
 			aws.String("stopping"),
+			aws.String("running"),
+			aws.String("pending"),
 		}
 		filters := []*ec2.Filter{
 			{
@@ -383,8 +461,23 @@ func main() {
 				Values: states,
 			},
 		}
+		start = time.Now()
 		instances := getInstances(svc, filters)
-		captureInstances(*region.RegionName, instances, tm, "stopped", pusher)
+		logProfile.Println("getInstances all", time.Since(start))
+
+		// Instances stopped
+
+		states = []*string{
+			aws.String("stopped"),
+			aws.String("shutting-down"),
+			aws.String("stopping"),
+		}
+		start = time.Now()
+		instancesStopped := filterInstancesByState(instances, states)
+		logProfile.Println("getInstances stopped", time.Since(start))
+		start = time.Now()
+		captureInstances(*region.RegionName, instancesStopped, tm, "stopped", pusher)
+		logProfile.Println(account, *region.RegionName, "captureInstances stopped", time.Since(start))
 
 		// Instances running
 		//
@@ -392,22 +485,13 @@ func main() {
 			aws.String("running"),
 			aws.String("pending"),
 		}
-		filters = []*ec2.Filter{
-			{
-				Name: aws.String("instance-state-name"),
-				Values: states,
-			},
-		}
-		instances = getInstances(svc, filters)
-		captureInstances(*region.RegionName, instances, tm, "running", pusher)
+		start = time.Now()
+		instancesRunning := filterInstancesByState(instances, states)
+		logProfile.Println("getInstances running", time.Since(start))
 
-		// If there is no running instance, then no need to continue
-		if len(instances) == 0 {
-			if err := pusher.Push(); err != nil {
-				fmt.Println(err.Error())
-			}
-			continue
-		}
+		start = time.Now()
+		captureInstances(*region.RegionName, instancesRunning, tm, "running", pusher)
+		logProfile.Println("captureInstances running", time.Since(start))
 
 		// Running ocp4-cluster
 		filters = []*ec2.Filter{
@@ -424,8 +508,16 @@ func main() {
 				},
 			},
 		}
-		instances = getInstances(svc, filters)
-		captureInstances(*region.RegionName, instances, tm, "running_ocp_cluster", pusher)
+		start = time.Now()
+
+		instancesOCP := instancesRunning
+		// If there are running instances
+		if len(instancesRunning) != 0 {
+			// get those which are from an OpenShift Cluster
+			instancesOCP = getInstances(svc, filters)
+		}
+		captureInstances(*region.RegionName, instancesOCP, tm, "running_ocp_cluster", pusher)
+		logProfile.Println("getInstance+captureInstances ocp", time.Since(start))
 		if err := pusher.Push(); err != nil {
 			fmt.Println(err.Error())
 		}
