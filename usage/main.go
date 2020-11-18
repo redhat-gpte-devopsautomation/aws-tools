@@ -317,7 +317,7 @@ func main() {
 	sandbox := ""
 
 	// If account is a sandbox, then save the information under the same "account"
-	if len(account) > 6 && account[0:7] == "sandbox" {
+	if len(account) > 7 && account[0:7] == "sandbox" {
 		sandbox = account
 		account = "sandboxes"
 	}
@@ -369,9 +369,13 @@ func main() {
 
 		captureAddresses(*region.RegionName, getAddresses(svc), pusher)
 
+
+		// Instances stopped
+
 		states := []*string{
-			aws.String("running"),
-			aws.String("pending"),
+			aws.String("stopped"),
+			aws.String("shutting-down"),
+			aws.String("stopping"),
 		}
 		filters := []*ec2.Filter{
 			{
@@ -380,7 +384,30 @@ func main() {
 			},
 		}
 		instances := getInstances(svc, filters)
+		captureInstances(*region.RegionName, instances, tm, "stopped", pusher)
+
+		// Instances running
+		//
+		states = []*string{
+			aws.String("running"),
+			aws.String("pending"),
+		}
+		filters = []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: states,
+			},
+		}
+		instances = getInstances(svc, filters)
 		captureInstances(*region.RegionName, instances, tm, "running", pusher)
+
+		// If there is no running instance, then no need to continue
+		if len(instances) == 0 {
+			if err := pusher.Push(); err != nil {
+				fmt.Println(err.Error())
+			}
+			continue
+		}
 
 		// Running ocp4-cluster
 		filters = []*ec2.Filter{
@@ -399,22 +426,6 @@ func main() {
 		}
 		instances = getInstances(svc, filters)
 		captureInstances(*region.RegionName, instances, tm, "running_ocp_cluster", pusher)
-
-		// Instances stopped
-
-		states = []*string{
-			aws.String("stopped"),
-			aws.String("shutting-down"),
-			aws.String("stopping"),
-		}
-		filters = []*ec2.Filter{
-			{
-				Name: aws.String("instance-state-name"),
-				Values: states,
-			},
-		}
-		instances = getInstances(svc, filters)
-		captureInstances(*region.RegionName, instances, tm, "stopped", pusher)
 		if err := pusher.Push(); err != nil {
 			fmt.Println(err.Error())
 		}
