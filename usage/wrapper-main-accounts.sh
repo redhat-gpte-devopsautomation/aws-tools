@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH=${HOME}/bin:${PATH}
 mkdir -p ~/aws-usage-data
 cd ~/aws-usage-data
 export PROMETHEUS_GATEWAY=http://localhost:9091

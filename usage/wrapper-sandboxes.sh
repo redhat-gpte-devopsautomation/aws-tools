@@ -3,6 +3,7 @@ set -euo pipefail
 ##############
 
 ORIG="$(cd "$(dirname "$0")" || exit; pwd)"
+export PATH=${HOME}/bin:${PATH}
 
 # Max time for running aws-usage per account
 TIMEOUT=300
