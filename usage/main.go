@@ -503,13 +503,20 @@ func main() {
 				Name: aws.String("tag:env_type"),
 				Values: []*string{
 					aws.String("ocp4-cluster"),
+					aws.String("ocp4-disconnected-osp-lab"),
+					aws.String("ocp4-ha-lab"),
 					aws.String("ocp4-workshop"),
+					aws.String("ocp-gpu-single-node"),
+					aws.String("ocp-ha-disconnected-lab"),
+					aws.String("ocp-ha-lab"),
+					aws.String("ocp-implementation-lab"),
+					aws.String("ocp-storage-cns"),
 					aws.String("ocp-workshop"),
+					aws.String("ocp-workshop-with-clientvms"),
 				},
 			},
 		}
 		start = time.Now()
-
 		instancesOCP := instancesRunning
 		// If there are running instances
 		if len(instancesRunning) != 0 {
@@ -518,6 +525,12 @@ func main() {
 		}
 		captureInstances(*region.RegionName, instancesOCP, tm, "running_ocp_cluster", pusher)
 		logProfile.Println("getInstance+captureInstances ocp", time.Since(start))
+		if len(instancesOCP) > 0 {
+			start = time.Now()
+			countClusters(instances, pusher)
+			logProfile.Println(*region.RegionName, account, sandbox, "countClusters", time.Since(start))
+		}
+
 		if err := pusher.Push(); err != nil {
 			fmt.Println(err.Error())
 		}
