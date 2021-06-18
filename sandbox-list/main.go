@@ -17,8 +17,6 @@ import (
 	"time"
 )
 
-// TODO: use https://golang.org/pkg/text/tabwriter/
-
 var csvFlag bool
 var allFlag bool
 var toCleanupFlag bool
