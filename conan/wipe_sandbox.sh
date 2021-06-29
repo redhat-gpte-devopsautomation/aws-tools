@@ -30,8 +30,14 @@ EOM
 
 sandbox_reset() {
     local s=${1##sandbox}
+    local prevlogfile=~/pool_management/reset_${sandbox}.log.1
     local logfile=~/pool_management/reset_${sandbox}.log
     cd ~/pool_management/agnosticd/ansible
+
+    # Keep previous log to help troubleshooting
+    if [ -e "${logfile}" ]; then
+        cp "${logfile}" "${prevlogfile}"
+    fi
 
     echo "$(date) reset sandbox${s}" >> ~/pool_management/reset.log
 
