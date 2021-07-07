@@ -50,7 +50,7 @@ sandbox_reset() {
         # If last attempt was less than 24h (TTL_EVENTLOG) ago
         # and if it failed more than MAX_ATTEMPTS times, skip.
         if [ $age_eventlog -le $TTL_EVENTLOG ] && \
-            [ $(wc -l $eventlog) -ge ${MAX_ATTEMPTS} ]; then
+            [ $(wc -l $eventlog | awk '{print $1}') -ge ${MAX_ATTEMPTS} ]; then
             echo "$(date) ${sandbox} Too many attemps, skipping"
             return
         fi
