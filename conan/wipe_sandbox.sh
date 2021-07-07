@@ -2,6 +2,11 @@
 
 ORIG="$(cd "$(dirname "$0")" || exit; pwd)"
 
+# Stop after MAX_ATTEMPTS
+MAX_ATTEMPTS=5
+# retry after 48h
+TTL_EVENTLOG=$((3600*24))
+
 prepare_workdir() {
     mkdir -p ~/pool_management
 
@@ -32,6 +37,7 @@ sandbox_reset() {
     local s=${1##sandbox}
     local prevlogfile=~/pool_management/reset_${sandbox}.log.1
     local logfile=~/pool_management/reset_${sandbox}.log
+    local eventlog=~/pool_management/reset_${sandbox}.events.log
     cd ~/pool_management/agnosticd/ansible
 
     # Keep previous log to help troubleshooting
@@ -39,7 +45,20 @@ sandbox_reset() {
         cp "${logfile}" "${prevlogfile}"
     fi
 
+    if [ -e "${eventlog}" ]; then
+        local age_eventlog=$(( $(date +%s) - $(date -r $eventlog +%s) ))
+        # If last attempt was less than 24h (TTL_EVENTLOG) ago
+        # and if it failed more than MAX_ATTEMPTS times, skip.
+        if [ $age_eventlog -le $TTL_EVENTLOG ] && \
+            [ $(wc -l $eventlog) -ge ${MAX_ATTEMPTS} ]; then
+            echo "$(date) ${sandbox} Too many attemps, skipping"
+            return
+        fi
+    fi
+
+
     echo "$(date) reset sandbox${s}" >> ~/pool_management/reset.log
+    echo "$(date) reset sandbox${s}" >> $eventlog
 
     echo "$(date) ${sandbox} reset starting..."
 
@@ -51,6 +70,7 @@ sandbox_reset() {
 
     if [ $? = 0 ]; then
         echo "$(date) ${sandbox} reset OK"
+        rm $eventlog
     else
         echo "$(date) ${sandbox} reset FAILED. See ${logfile}" >&2
         exit 3
