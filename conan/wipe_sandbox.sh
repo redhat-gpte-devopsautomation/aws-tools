@@ -3,7 +3,7 @@
 ORIG="$(cd "$(dirname "$0")" || exit; pwd)"
 
 # Stop after MAX_ATTEMPTS
-MAX_ATTEMPTS=5
+MAX_ATTEMPTS=2
 # retry after 48h
 TTL_EVENTLOG=$((3600*24))
 
